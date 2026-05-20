@@ -1,0 +1,91 @@
+SUBTRACK – Dokumentacja projektu
+Autorzy: Jan Cieślik (51711), Kacper Celejewski (51715)
+Link do repozytorium: https://github.com/JanCieslik/subtrack
+
+
+1. OPIS PROJEKTU
+
+
+SubTrack to aplikacja webowa do śledzenia subskrypcji cyfrowych.
+Chodzi o to żeby mieć w jednym miejscu wszystko za co się płaci
+co miesiąc – Netflix, Spotify, Adobe, Azure i tym podobne.
+
+Główna funkcja to przeliczanie łącznego kosztu na złotówki.
+Jeśli ktoś płaci za coś w dolarach albo euro, aplikacja sama
+pobiera aktualny kurs z NBP i liczy ile to wynosi w PLN.
+
+Co zawiera:
+  - rejestracja i logowanie (JWT)
+  - dodawanie / edytowanie / usuwanie subskrypcji
+  - obsługa walut: PLN, USD, EUR
+  - pobieranie kursów walut z api.nbp.pl (cache co godzinę)
+  - dashboard z łącznym kosztem miesięcznym w PLN
+
+
+2. UŻYTE TECHNOLOGIE
+
+
+Backend:
+  - Node.js + Express.js
+  - PostgreSQL
+  - bcryptjs (hashowanie haseł, 10 rund)
+  - jsonwebtoken (tokeny ważne 7 dni)
+  - axios (zapytania do NBP API)
+  - express-validator (walidacja danych)
+
+Frontend:
+  - React 18 + Vite
+  - React Router v6
+  - Axios
+  - react-hot-toast
+  - czysty CSS bez frameworka
+
+
+3. SCHEMAT BAZY DANYCH
+
+Tabela: users
+  id            SERIAL PRIMARY KEY
+  email         VARCHAR(255) UNIQUE NOT NULL
+  password_hash VARCHAR(255) NOT NULL
+  created_at    TIMESTAMP DEFAULT NOW()
+
+Tabela: subscriptions
+  id         SERIAL PRIMARY KEY
+  user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE
+  name       VARCHAR(255) NOT NULL
+  cost       DECIMAL(10,2) NOT NULL
+  currency   VARCHAR(3) DEFAULT 'PLN'
+  due_day    INTEGER (opcjonalne, 1-31)
+  active     BOOLEAN DEFAULT true
+  created_at TIMESTAMP
+  updated_at TIMESTAMP
+
+Tabela: rates (cache kursów NBP)
+  id         SERIAL PRIMARY KEY
+  currency   VARCHAR(3) UNIQUE
+  rate       DECIMAL(10,4)
+  updated_at TIMESTAMP
+
+
+4. ENDPOINTY API
+
+Wszystkie poza /register i /login wymagają nagłówka:
+  Authorization: Bearer <token>
+
+  POST   /api/auth/register    rejestracja (email, password)
+  POST   /api/auth/login       logowanie, zwraca JWT
+  GET    /api/subs             lista subskrypcji użytkownika
+  POST   /api/subs             dodaj subskrypcję
+  PUT    /api/subs/:id         edytuj subskrypcję
+  DELETE /api/subs/:id         usuń subskrypcję
+  GET    /api/subs/stats       łączny koszt w PLN + kursy
+  GET    /api/rates            aktualne kursy USD/EUR z NBP
+  GET    /health               health check
+
+Format odpowiedzi sukces:
+  { "success": true, "data": { ... }, "message": "..." }
+
+Format odpowiedzi błąd:
+  { "success": false, "error": "opis", "status": 404 }
+
+
